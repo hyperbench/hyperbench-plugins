@@ -7,7 +7,7 @@ require (
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/meshplus/gosdk v0.1.0
-	github.com/meshplus/hyperbench-common v0.0.0-20220118061046-70e2ed2944de
+	github.com/meshplus/hyperbench-common v0.0.0-20220127111013-538d001f759d
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/opentracing/opentracing-go v1.2.0 // indirect

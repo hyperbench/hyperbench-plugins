@@ -25,7 +25,7 @@ func GetTPS(client *ledger.Client, startNum uint64, endNum uint64, statistic fco
 		End:      statistic.To,
 		BlockNum: blockNum,
 		TxNum:    txNum,
-		Tps:      float64(txNum) / float64(to-from) * 1e9,
+		CTps:     float64(txNum) / float64(to-from) * 1e9,
 		Bps:      float64(blockNum) / float64(to-from) * 1e9,
 	}
 	return statisticResult, nil
