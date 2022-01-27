@@ -470,7 +470,7 @@ func GetTPS(e *ETH, beginTime, endTime int64) (*fcom.RemoteStatistic, error) {
 		End:      endTime,
 		BlockNum: blockCounter,
 		TxNum:    txCounter,
-		Tps:      float64(txCounter) * 1e9 / float64(endTime-beginTime),
+		CTps:     float64(txCounter) * 1e9 / float64(endTime-beginTime),
 		Bps:      float64(blockCounter) * 1e9 / float64(endTime-beginTime),
 	}
 	return statistic, nil

@@ -435,7 +435,7 @@ func (x *Xuperchain) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic,
 		End:      statistic.To,
 		BlockNum: blockNum,
 		TxNum:    txNum,
-		Tps:      float64(txNum) * 1e9 / float64(statistic.To-statistic.From),
+		CTps:     float64(txNum) * 1e9 / float64(statistic.To-statistic.From),
 		Bps:      float64(blockNum) * 1e9 / float64(statistic.To-statistic.From),
 	}
 	return ret, nil

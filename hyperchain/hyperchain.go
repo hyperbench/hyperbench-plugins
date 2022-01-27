@@ -12,9 +12,9 @@ import (
 	"github.com/meshplus/gosdk/hvm"
 	"github.com/meshplus/gosdk/rpc"
 	"github.com/meshplus/gosdk/utils/java"
-	"github.com/pkg/errors"
 	"github.com/meshplus/hyperbench-common/base"
 	fcom "github.com/meshplus/hyperbench-common/common"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -431,7 +431,7 @@ func (c *Client) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, err
 		End:      to,
 		BlockNum: int(tps.TotalBlockNum),
 		TxNum:    int(tps.Tps*float64(to-from)) / int(time.Second),
-		Tps:      tps.Tps,
+		CTps:     tps.Tps,
 		Bps:      float64(tps.TotalBlockNum) / float64(to-from) * 1e9,
 	}
 
