@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/huin/goupnp v1.0.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/meshplus/hyperbench-common v0.0.0-20220128032954-17b85a4de5c7
+	github.com/meshplus/hyperbench-common v0.0.0-20220128060413-2f16193421b0
 	github.com/prometheus/client_golang v1.4.1 // indirect
 	github.com/prometheus/procfs v0.0.10 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect

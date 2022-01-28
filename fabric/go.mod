@@ -7,7 +7,7 @@ require (
 	github.com/hyperledger/fabric-protos-go v0.0.0-20200707132912-fee30f3ccd23
 	github.com/hyperledger/fabric-sdk-go v1.0.1-0.20210927191040-3e3a3c6aeec9
 	github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric v0.0.0-20190822125948-d2b42602e52e
-	github.com/meshplus/hyperbench-common v0.0.0-20220128032954-17b85a4de5c7
+	github.com/meshplus/hyperbench-common v0.0.0-20220128060413-2f16193421b0
 	github.com/onsi/gomega v1.10.1 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pkg/errors v0.9.1
