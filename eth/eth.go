@@ -117,9 +117,7 @@ func init() {
 // New use given blockchainBase create ETH.
 func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
 	log := fcom.GetLogger("eth")
-	configPath := viper.GetString(fcom.ClientConfigPath)
-	options := viper.GetStringMap(fcom.ClientOptionPath)
-	ethConfig, err := os.Open(configPath + "/eth.toml")
+	ethConfig, err := os.Open(blockchainBase.ConfigPath + "/eth.toml")
 	if err != nil {
 		log.Errorf("load eth configuration fialed: %v", err)
 		return nil, err
@@ -165,8 +163,8 @@ func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
 	if workerNum == 0 {
 		workerNum = 1
 	}
-	vmIdx := uint64(options["vmIdx"].(int64))
-	wkIdx := uint64(options["wkIdx"].(int64))
+	vmIdx := uint64(blockchainBase.Options["vmIdx"].(int64))
+	wkIdx := uint64(blockchainBase.Options["wkIdx"].(int64))
 	client = &ETH{
 		BlockchainBase: blockchainBase,
 		ethClient:      ethClient,
