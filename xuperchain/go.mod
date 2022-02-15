@@ -19,7 +19,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/xuperchain/xuper-sdk-go/v2 v2.0.0
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+        golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
