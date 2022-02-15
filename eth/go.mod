@@ -10,7 +10,7 @@ require (
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+        golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
