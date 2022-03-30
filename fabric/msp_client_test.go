@@ -3,10 +3,10 @@ package main
 import (
 	"testing"
 
+	"github.com/hyperbench/hyperbench-common/base"
+	fcom "github.com/hyperbench/hyperbench-common/common"
 	clientMSP "github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
-	"github.com/meshplus/hyperbench-common/base"
-	fcom "github.com/meshplus/hyperbench-common/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -56,7 +56,7 @@ func TestGetMspClient(t *testing.T) {
 	b := base.NewBlockchainBase(base.ClientConfig{
 		ClientType:   "fabric",
 		ConfigPath:   "./../../../benchmark/fabricExample/fabric",
-		ContractPath: "github.com/meshplus/hyperbench/benchmark/fabricExample/contract",
+		ContractPath: "github.com/hyperbench/hyperbench/benchmark/fabricExample/contract",
 		Args:         []interface{}{"init", "A", "123", "B", "234"},
 		Options:      op,
 	})

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	fcom "github.com/meshplus/hyperbench-common/common"
+	fcom "github.com/hyperbench/hyperbench-common/common"
 
-	"github.com/meshplus/hyperbench-common/base"
+	"github.com/hyperbench/hyperbench-common/base"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 

@@ -1,8 +1,8 @@
 package main
 
 import (
+	fcom "github.com/hyperbench/hyperbench-common/common"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
-	fcom "github.com/meshplus/hyperbench-common/common"
 )
 
 // GetTPS get remote tps

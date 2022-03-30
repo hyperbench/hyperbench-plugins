@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/meshplus/hyperbench-common/base"
-	fcom "github.com/meshplus/hyperbench-common/common"
+	"github.com/hyperbench/hyperbench-common/base"
+	fcom "github.com/hyperbench/hyperbench-common/common"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +20,7 @@ func TestFabric(t *testing.T) {
 	b := base.NewBlockchainBase(base.ClientConfig{
 		ClientType:   "fabric",
 		ConfigPath:   "./../../../benchmark/fabricExample/fabric",
-		ContractPath: "github.com/meshplus/hyperbench-common/benchmark/fabricExample/contract",
+		ContractPath: "github.com/hyperbench/hyperbench-common/benchmark/fabricExample/contract",
 		Args:         []interface{}{"init", "A", "123", "B", "234"},
 		Options:      op,
 	})

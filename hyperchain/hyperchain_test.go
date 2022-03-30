@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperbench/hyperbench-common/base"
+	fcom "github.com/hyperbench/hyperbench-common/common"
 	"github.com/meshplus/gosdk/rpc"
-	"github.com/meshplus/hyperbench-common/base"
-	fcom "github.com/meshplus/hyperbench-common/common"
 	"github.com/stretchr/testify/assert"
 )
 
