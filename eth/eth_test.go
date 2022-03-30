@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/meshplus/hyperbench-common/base"
-	fcom "github.com/meshplus/hyperbench-common/common"
+	"github.com/hyperbench/hyperbench-common/base"
+	fcom "github.com/hyperbench/hyperbench-common/common"
 
 	"github.com/spf13/viper"
 
