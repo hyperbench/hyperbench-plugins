@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/hyperbench/hyperbench-common/base"
+	fcom "github.com/hyperbench/hyperbench-common/common"
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
-
-	"github.com/hyperbench/hyperbench-common/base"
-	fcom "github.com/hyperbench/hyperbench-common/common"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -19,15 +17,15 @@ func TestXuperchain(t *testing.T) {
 	defer os.RemoveAll("./benchmark")
 
 	op := make(map[string]interface{})
-	op["wkIdx"] = int64(0)
 	b := base.NewBlockchainBase(base.ClientConfig{
 		ClientType:   "xuperchain",
 		ConfigPath:   "./benchmark",
 		ContractPath: "./../../../benchmark/xuperGoContract/contract",
 		Args:         nil,
 		Options:      op,
+		VmIdx:        0,
 	})
-	start := time.Now().UnixNano()
+
 	// newClient
 	_, err := New(b)
 	assert.Error(t, err)
@@ -42,6 +40,9 @@ func TestXuperchain(t *testing.T) {
 	viper.Set("rpc.port", "37101")
 	c, err := New(b)
 	client := c.(*Xuperchain)
+	assert.NoError(t, err)
+	start, err := client.LogStatus()
+	assert.NotNil(t, start)
 	assert.NoError(t, err)
 	// golang contract
 	b.ContractPath = "./benchmark/xupergo/contract"
@@ -174,7 +175,10 @@ func TestXuperchain(t *testing.T) {
 	})
 	assert.Equal(t, res.Status, fcom.Status("failure"))
 
-	end := time.Now().UnixNano()
+	end, err := client.LogStatus()
+	assert.NotNil(t, end)
+	assert.NoError(t, err)
+
 	result, _ := client.Statistic(fcom.Statistic{
 		From: start,
 		To:   end,
