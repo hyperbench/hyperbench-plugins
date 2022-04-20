@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/meshplus/gosdk/abi"
 	"github.com/meshplus/gosdk/common"
+	"github.com/meshplus/gosdk/common/hexutil"
+	"github.com/meshplus/gosdk/fvm/scale"
 	"github.com/meshplus/gosdk/hvm"
 	"github.com/meshplus/gosdk/rpc"
 	"github.com/meshplus/gosdk/utils/java"
@@ -32,6 +35,15 @@ const (
 	// hvm
 	HVM = "hvm"
 	JAR = "jar"
+
+	BVM = "bvm"
+
+	KVSQL = "kvsql"
+
+	//fvm
+	FVM  = "fvm"
+	WASM = "wasm"
+	JSON = "json"
 )
 
 //Contract contains ContractRaw and ABI
@@ -42,6 +54,8 @@ type Contract struct {
 	ABI abi.ABI
 	//ABIRaw string
 	hvmABI hvm.Abi
+	//fvm abi
+	fvmABI scale.Abi
 }
 
 //ContractRaw the raw of contract
@@ -67,6 +81,7 @@ func (c *Client) newContract(vm rpc.VMType, addr string, abiRaw string) (*Contra
 		err error
 		a   abi.ABI
 		h   hvm.Abi
+		f   scale.Abi
 	)
 
 	if abiRaw != "" {
@@ -82,7 +97,15 @@ func (c *Client) newContract(vm rpc.VMType, addr string, abiRaw string) (*Contra
 			if err != nil {
 				return nil, err
 			}
+		case rpc.KVSQL:
+			c.Logger.Critical("kvsql abiRaw:%v", abiRaw)
+		case rpc.FVM:
+			if f, err = scale.JSON(bytes.NewReader([]byte(abiRaw))); err != nil {
+				c.Logger.Errorf("parse abi %v error: %v", abiRaw, err)
+				return nil, err
+			}
 		}
+
 	}
 
 	return &Contract{
@@ -93,6 +116,7 @@ func (c *Client) newContract(vm rpc.VMType, addr string, abiRaw string) (*Contra
 		},
 		ABI:    a,
 		hvmABI: h,
+		fvmABI: f,
 	}, nil
 }
 
@@ -130,6 +154,17 @@ func (c *Client) DeployContract() error {
 	var dirPath = DirPath(c.ContractPath)
 	var err error
 	c.Logger.Notice(c.ConfigPath)
+
+	if c.op.vmType == BVM {
+		c.contract = &Contract{
+			ContractRaw: &ContractRaw{
+				VM:   rpc.BVM,
+				Addr: "0x0000000000000000000000000000000000ffff01",
+			},
+		}
+		return nil
+	}
+
 	if ok, path := dirPath.hasFiles(EVM); ok {
 		c.Logger.Notice("evm")
 		evm := DirPath(path[0])
@@ -231,6 +266,7 @@ func (c *Client) DeployContract() error {
 				if c.contract, err = c.newContract(rpc.HVM, string(addr), abiStr); err != nil {
 					return err
 				}
+				return nil
 			}
 
 			if ok, jarPath = hvm.hasFiles(JAR); ok {
@@ -242,6 +278,87 @@ func (c *Client) DeployContract() error {
 			return nil
 
 		}
+	} else if ok, path := dirPath.hasFiles(KVSQL); ok {
+		kvsql := DirPath(path[0])
+
+		// generate contract context according to address and abi
+		if ok, path := kvsql.hasFiles(ADDR, KVSQL); ok {
+			var (
+				addrFile []byte
+				abiFile  []byte
+			)
+			if addrFile, err = getAddress(path[0]); err != nil {
+				c.Logger.Notice(err)
+				return err
+			}
+			addrFile = addrFile[:42]
+			if abiFile, err = ioutil.ReadFile(path[1]); err != nil {
+				c.Logger.Notice(err)
+				return err
+			}
+
+			if c.contract, err = c.newContract(rpc.KVSQL, string(addrFile), string(abiFile)); err != nil {
+				c.Logger.Notice(err)
+				return err
+			}
+			return nil
+
+		} else if ok, path := kvsql.hasFiles(KVSQL); ok {
+			// create db  and then create table
+			var (
+				contract *Contract
+			)
+			if contract, err = c.kvsqlDeployAndCreateTable(path[0]); err != nil {
+				c.Logger.Error(err)
+				return err
+			}
+			c.contract = contract
+			return nil
+
+		}
+	} else if ok, path := dirPath.hasFiles(FVM); ok {
+		fvm := DirPath(path[0])
+		fmt.Println("fvm", fvm)
+		if ok, path := fvm.hasFiles(ADDR, WASM); ok {
+			var (
+				addrFile []byte
+				abiFile  []byte
+			)
+
+			if addrFile, err = getAddress(path[0]); err != nil {
+				c.Logger.Notice(err)
+				return err
+			}
+			addrFile = addrFile[:42]
+
+			fmt.Println("path:", path)
+			ok, abiFiles := fvm.hasFiles(JSON)
+			if !ok {
+				c.Logger.Error("not found json")
+			}
+			abiFile, err := ioutil.ReadFile(abiFiles[0])
+
+			if c.contract, err = c.newContract(rpc.FVM, string(addrFile), string(abiFile)); err != nil {
+				c.Logger.Notice(err)
+				return err
+			}
+			return nil
+		} else if ok, path := fvm.hasFiles(WASM); ok {
+			fmt.Println("path:", path)
+			ok, abiFiles := fvm.hasFiles(JSON)
+			if !ok {
+				c.Logger.Error("not found json")
+			}
+			if err != nil {
+				c.Logger.Notice(err)
+				return err
+			}
+			if c.contract, err = c.fvmDeploy(path[0], string(abiFiles[0])); err != nil {
+				return err
+			}
+
+		}
+
 	}
 
 	// do nothing while can not init
@@ -260,7 +377,7 @@ func (c *Client) evmDeployWithCode(codePath string) (*Contract, error) {
 		return nil, err
 	}
 
-	if cr, stdErr = c.rpcClient.CompileContract(string(code)); stdErr != nil {
+	if cr, stdErr = c.client.CompileContract(string(code)); stdErr != nil {
 		c.Logger.Errorf("compile code file %v error: %v", codePath, stdErr)
 		return nil, stdErr
 	}
@@ -305,7 +422,7 @@ func (c *Client) evmDeploy(binStr string, abiStr string) (*Contract, error) {
 	}
 	c.sign(tx, ac)
 
-	txReceipt, stdErr := c.rpcClient.DeployContract(tx)
+	txReceipt, stdErr := c.client.DeployContract(tx)
 	if stdErr != nil {
 		c.Logger.Errorf("can not deploy contract: %v", stdErr)
 		return nil, stdErr
@@ -316,6 +433,47 @@ func (c *Client) evmDeploy(binStr string, abiStr string) (*Contract, error) {
 		return nil, err
 	}
 
+	return contract, nil
+}
+
+func (c *Client) kvsqlDeployAndCreateTable(sql string) (*Contract, error) {
+	c.Logger.Debugf("deploy and create table with sql file [%v]", sql)
+	var (
+		err        error
+		contract   *Contract
+		create_sql []byte
+	)
+
+	ac, err := c.am.GetAccount("0")
+	if err != nil {
+		return nil, errors.Wrap(err, "can not get default account")
+	}
+	tx := rpc.NewTransaction(ac.GetAddress().Hex()).Deploy(hexutil.Encode([]byte("KVSQL"))).VMType(rpc.KVSQL)
+	if c.op.nonce >= 0 {
+		tx.SetNonce(c.op.nonce)
+	}
+
+	tx.Sign(ac)
+	txReceipt, stdErr := c.client.DeployContract(tx)
+	if stdErr != nil {
+		c.Logger.Errorf("can not create database: [%v]", stdErr)
+		return nil, stdErr
+	}
+	c.Logger.Info("create database success", txReceipt.ContractAddress)
+	if contract, err = c.newContract(rpc.KVSQL, txReceipt.ContractAddress, ""); err != nil {
+		c.Logger.Error(err)
+		return nil, err
+	}
+	if create_sql, err = ioutil.ReadFile(sql); err != nil {
+		c.Logger.Errorf("get sql file [%v] error: [%v]", sql, err)
+		return nil, err
+	}
+	tranInvoke := rpc.NewTransaction(ac.GetAddress().Hex()).InvokeSql(txReceipt.ContractAddress, create_sql).VMType(rpc.KVSQL)
+	tranInvoke.Sign(ac)
+	if txReceipt, err := c.client.InvokeContract(tranInvoke); err != nil {
+		c.Logger.Errorf("create table with sql error: [%v]", err)
+		c.Logger.Errorf("create table returns [%v] ", txReceipt.ErrorMsg)
+	}
 	return contract, nil
 }
 
@@ -343,8 +501,7 @@ func (c *Client) jvmDeploy(path string) (*Contract, error) {
 		tx.SetNonce(c.op.nonce)
 	}
 	c.sign(tx, ac)
-
-	if txReceipt, err = c.rpcClient.DeployContract(tx); err != nil {
+	if txReceipt, err = c.client.DeployContract(tx); err != nil {
 		c.Logger.Errorf("deploy java contract %v error: %v", path, err)
 		return nil, err
 	}
@@ -359,16 +516,17 @@ func (c *Client) jvmDeploy(path string) (*Contract, error) {
 func (c *Client) hvmDeploy(jarPath, abiPath string) (*Contract, error) {
 	c.Logger.Debugf("deploy hvm contract with file %v", jarPath)
 	var (
+		bt        []byte
 		payload   string
 		err       error
 		txReceipt *rpc.TxReceipt
 		contract  *Contract
 		abiJSON   string
 	)
-	if payload, err = hvm.ReadJar(jarPath); err != nil {
+	if bt, err = rpc.DecompressFromJar(jarPath); err != nil {
 		return nil, err
 	}
-
+	payload = common.ToHex(bt)
 	ac, err := c.am.GetAccount("0")
 	if err != nil {
 		return nil, errors.Wrap(err, "can not get default account")
@@ -379,7 +537,7 @@ func (c *Client) hvmDeploy(jarPath, abiPath string) (*Contract, error) {
 	}
 	c.sign(tx, ac)
 
-	if txReceipt, err = c.rpcClient.DeployContract(tx); err != nil {
+	if txReceipt, err = c.client.DeployContract(tx); err != nil {
 		return nil, err
 	}
 
@@ -392,6 +550,48 @@ func (c *Client) hvmDeploy(jarPath, abiPath string) (*Contract, error) {
 	}
 	return contract, err
 
+}
+
+func (c *Client) fvmDeploy(wasmPath, abiPath string) (*Contract, error) {
+	c.Logger.Debugf("deploy fvm contract with file %v", wasmPath)
+	c.Logger.Debugf("deploy fvm abi with file %v", abiPath)
+
+	var (
+		payload   string
+		err       error
+		txReceipt *rpc.TxReceipt
+		contract  *Contract
+	)
+	abiJSON, err := ioutil.ReadFile(abiPath)
+	if err != nil {
+		c.Logger.Error(err)
+		return nil, err
+	}
+	var bt []byte
+	if bt, err = ioutil.ReadFile(wasmPath); err != nil {
+		return nil, err
+	}
+	payload = common.ToHex(bt)
+
+	ac, err := c.am.GetAccount("0")
+	if err != nil {
+		return nil, errors.Wrap(err, "can not get default account")
+	}
+	tx := rpc.NewTransaction(ac.GetAddress().Hex()).Deploy(payload).VMType(rpc.FVM)
+	if c.op.nonce >= 0 {
+		tx.SetNonce(c.op.nonce)
+	}
+	tx.Sign(ac)
+	if txReceipt, err = c.client.DeployContract(tx); err != nil {
+		c.Logger.Error("DeployContract failed:", err)
+		return nil, err
+	}
+	//abiFile, err := ioutil.ReadFile(abiFiles[0])
+
+	if contract, err = c.newContract(rpc.FVM, txReceipt.ContractAddress, string(abiJSON)); err != nil {
+		return nil, err
+	}
+	return contract, err
 }
 
 func getAddress(path string) ([]byte, error) {
