@@ -32,7 +32,9 @@ func TestFabric(t *testing.T) {
 	client := c.(*Fabric)
 	err = client.DeployContract()
 	assert.NoError(t, err)
-
+	start, err := client.LogStatus()
+	assert.NotNil(t, start)
+	assert.NoError(t, err)
 	//getContext
 	context, err := client.GetContext()
 	assert.NoError(t, err)
@@ -58,7 +60,10 @@ func TestFabric(t *testing.T) {
 	assert.NoError(t, err)
 
 	//statistic
-	res, err := client.Statistic(fcom.Statistic{From: int64(0), To: int64(1)})
+	end, err := client.LogStatus()
+	assert.NotNil(t, end)
+	assert.NoError(t, err)
+	res, err := client.Statistic(fcom.Statistic{From: start, To: end})
 	assert.NotNil(t, res)
 	assert.NoError(t, err)
 

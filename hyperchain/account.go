@@ -22,6 +22,8 @@ const (
 	ECDSA AccountType = iota
 	//SM2 account type of SM2
 	SM2
+	//ED25519 account type of ed25519
+	ED25519
 )
 
 //PASSWORD the default password of account
@@ -49,6 +51,8 @@ func NewAccountManager(keystore, accountType string, logger *logging.Logger) *Ac
 	switch strings.ToLower(accountType) {
 	case "sm2":
 		acType = SM2
+	case "ed25519":
+		acType = ED25519
 	default:
 		acType = ECDSA
 	}
@@ -122,29 +126,7 @@ func (am *AccountManager) GetAccountJSON(accountName string) (string, error) {
 
 //SetAccount set account with accountName, accountJson and password and return
 func (am *AccountManager) SetAccount(accountName string, accountJSON string, password string) (Account, error) {
-	var (
-		ac  Account
-		err error
-	)
-	switch am.AccountType {
-	case ECDSA:
-		ac, err = account.NewAccountFromAccountJSON(accountJSON, password)
-		if err != nil {
-			return nil, errors.Wrap(err, "parse ecdsa account error")
-
-		}
-	case SM2:
-		ac, err = account.NewAccountSm2FromAccountJSON(accountJSON, password)
-		if err != nil {
-			return nil, errors.Wrap(err, "parse sm2 account error")
-		}
-
-	default:
-
-		return nil, errors.New(fmt.Sprintf("unknow sign type %v", am.AccountType))
-
-	}
-
+	ac, err := am.SetAccountNotSave(accountName, accountJSON, password)
 	// Map account's name and address to account
 	// then accountManager can get account through it's name or address
 	am.Accounts[accountName] = ac
@@ -153,6 +135,37 @@ func (am *AccountManager) SetAccount(accountName string, accountJSON string, pas
 	// Map account's name to account but not the address
 	// Account should only be used to generate and sync context of accounts
 	am.AccountsJSON[accountName] = accountJSON
+	return ac, err
+}
+
+func (am *AccountManager) SetAccountNotSave(accountName string, accountJSON string, password string) (Account, error) {
+	var (
+		ac  Account
+		err error
+	)
+	switch am.AccountType {
+	case ECDSA:
+		ac, err = account.NewAccountFromAccountJSON(accountJSON, password)
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("parse ecdsa account error"))
+
+		}
+	case SM2:
+		ac, err = account.NewAccountSm2FromAccountJSON(accountJSON, password)
+		if err != nil {
+			return nil, errors.Wrap(err, "parse sm2 account error")
+		}
+	case ED25519:
+		acInner, err := account.GenKeyFromAccountJson(accountJSON, password)
+		if err != nil {
+			return nil, errors.Wrap(err, "parse ed25519 account error")
+		}
+		ac = acInner.(*account.ED25519Key)
+	default:
+
+		return nil, errors.New(fmt.Sprintf("unknow sign type %v", am.AccountType))
+
+	}
 	return ac, nil
 }
 
@@ -177,9 +190,17 @@ func (am *AccountManager) genAccountJSON(password string) string {
 			//return ""
 		}
 		return accountJSON
+	case ED25519:
+		accountJSON, err := account.NewAccountED25519("")
+		am.logger.Debugf("new ed25519 account %v", accountJSON)
+		if err != nil {
+			am.logger.Errorf("account gen: %v", err)
+			panic(err)
+			//return ""
+		}
+		return accountJSON
 	default:
 		panic(fmt.Sprintf("can not recognize sign type: %v", am.AccountType))
 		//return ""
 	}
-
 }

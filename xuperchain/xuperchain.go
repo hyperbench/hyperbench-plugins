@@ -53,8 +53,6 @@ type Xuperchain struct {
 	contractNames []string
 	contractType  string
 	instant       int
-	startBlock    int64
-	endBlock      int64
 }
 
 //Msg the message info of context
@@ -224,9 +222,6 @@ func (x *Xuperchain) DeployContract() error {
 		// set the contract name for further use
 		x.contractNames = contractNames
 	}
-	// get startblock number
-	bk, _ := x.client.QueryBlockChainStatus(DEFAULTBCNAME)
-	x.startBlock = bk.Block.GetHeight()
 	return nil
 }
 
@@ -418,10 +413,12 @@ func (x *Xuperchain) GetContext() (string, error) {
 
 //Statistic statistic remote node performance
 func (x *Xuperchain) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, error) {
-	// initiate txNum and blockNum
+	// initiate from,to timestamp, txNum, blockNum and duration
+	from, to := statistic.From.TimeStamp, statistic.To.TimeStamp
 	txNum, blockNum := 0, 0
+	duration := float64(to - from)
 	// query each block to count txNum from startblock to endblock
-	for i := x.startBlock; i <= x.endBlock; i++ {
+	for i := statistic.From.BlockHeight; i <= statistic.To.BlockHeight; i++ {
 		blockResult, err := x.client.QueryBlockByHeight(i)
 		if err != nil {
 			return nil, err
@@ -431,25 +428,23 @@ func (x *Xuperchain) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic,
 	}
 	// return result
 	ret := &fcom.RemoteStatistic{
-		Start:    statistic.From,
-		End:      statistic.To,
+		Start:    from,
+		End:      to,
 		BlockNum: blockNum,
 		TxNum:    txNum,
-		CTps:     float64(txNum) * 1e9 / float64(statistic.To-statistic.From),
-		Bps:      float64(blockNum) * 1e9 / float64(statistic.To-statistic.From),
+		CTps:     float64(txNum) * float64(time.Second) / duration,
+		Bps:      float64(blockNum) * float64(time.Second) / duration,
 	}
 	return ret, nil
 }
 
 // LogStatus records blockheight and time
-func (x *Xuperchain) LogStatus() (end int64, err error) {
+func (x *Xuperchain) LogStatus() (chainInfo *fcom.ChainInfo, err error) {
 	bk, err := x.client.QueryBlockChainStatus(DEFAULTBCNAME)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	x.endBlock = bk.Block.GetHeight()
-	end = time.Now().UnixNano()
-	return end, err
+	return &fcom.ChainInfo{BlockHeight: bk.Block.GetHeight(), TimeStamp: time.Now().UnixNano()}, err
 }
 
 //ResetContext reset test group context in go client
@@ -474,8 +469,6 @@ func (x *Xuperchain) initAccount(count int) (err error) {
 		}
 		x.accounts[strconv.Itoa(i)] = acc
 	}
-	bk, _ := x.client.QueryBlockChainStatus(DEFAULTBCNAME)
-	x.startBlock = bk.Block.GetHeight()
 	return err
 }
 

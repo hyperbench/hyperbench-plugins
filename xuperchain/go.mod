@@ -18,8 +18,11 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/xuperchain/xuper-sdk-go/v2 v2.0.0
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+    golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
+    golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
+
+replace github.com/hyperbench/hyperbench-common => github.com/shinyxhh/hyperbench-common v0.0.0-20220512074802-f270b2e76a72

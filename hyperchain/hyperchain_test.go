@@ -301,6 +301,9 @@ func TestHyperchain(t *testing.T) {
 	hpc = c.(*Client)
 	err = hpc.DeployContract()
 	assert.Error(t, err)
+	start, err := hpc.LogStatus()
+	assert.NotNil(t, start)
+	assert.NoError(t, err)
 
 	ioutil.WriteFile("./benchmark/hvm1/contract/hvm/test.addr", []byte("0xc6a91501d2ff05467f2336898da266d6de60c4"), 0644)
 	err = hpc.DeployContract()
@@ -354,13 +357,13 @@ func TestHyperchain(t *testing.T) {
 	err = hpc.SetContext(string(bytes))
 	assert.Error(t, err)
 
-	result, err := hpc.Statistic(fcom.Statistic{From: 1, To: 1})
-	assert.NotNil(t, result)
+	end, err := hpc.LogStatus()
+	assert.NotNil(t, end)
 	assert.NoError(t, err)
 
-	result, err = hpc.Statistic(fcom.Statistic{From: -1, To: 1})
-	assert.Nil(t, result)
-	assert.Error(t, err)
+	result, err := hpc.Statistic(fcom.Statistic{From: start, To: end})
+	assert.NotNil(t, result)
+	assert.NoError(t, err)
 
 	m := make(map[string]interface{})
 	m["confirm"] = true

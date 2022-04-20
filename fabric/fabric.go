@@ -26,12 +26,10 @@ const (
 //based on fabric network
 type Fabric struct {
 	*base.BlockchainBase
-	SDK        *SDK
-	ChannelID  string
-	CCId       string
-	CCPath     string
-	StartBlock uint64
-	EndBlock   uint64
+	SDK       *SDK
+	ChannelID string
+	CCId      string
+	CCPath    string
 	//OrgMSPId 		string
 	ShareAccount   int
 	Instant        int
@@ -44,9 +42,8 @@ type Fabric struct {
 
 //Msg contains message of context
 type Msg struct {
-	CCId       string
-	Accounts   map[string]*Client
-	StartBlock uint64
+	CCId     string
+	Accounts map[string]*Client
 }
 
 // New use given blockchainBase create Fabric.
@@ -165,17 +162,11 @@ func (f *Fabric) GetContext() (string, error) {
 	if e != nil {
 		return "", e
 	}
-	info, err := f.SDK.GetLedgerClient(f.ChannelID, f.SDK.OrgAdmin, f.SDK.OrgName).QueryInfo()
-	if err != nil {
-		return "", err
-	}
 	msg := &Msg{
-		CCId:       f.CCId,
-		Accounts:   f.AccountManager.Clients,
-		StartBlock: info.BCI.Height,
+		CCId:     f.CCId,
+		Accounts: f.AccountManager.Clients,
 	}
 	marshal, e := json.Marshal(msg)
-	f.StartBlock = msg.StartBlock
 	return string(marshal), e
 }
 
@@ -206,7 +197,7 @@ func (f *Fabric) ResetContext() error {
 
 //Statistic statistic node performance
 func (f *Fabric) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, error) {
-	statisticData, err := GetTPS(f.ledgerClient, f.StartBlock, f.EndBlock, statistic)
+	statisticData, err := GetTPS(f.ledgerClient, statistic)
 	if err != nil {
 		return nil, errors.Wrap(err, "query error")
 	}
@@ -214,14 +205,12 @@ func (f *Fabric) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, err
 }
 
 // LogStatus records blockheight and time
-func (f *Fabric) LogStatus() (end int64, err error) {
+func (f *Fabric) LogStatus() (chainInfo *fcom.ChainInfo, err error) {
 	ledgerInfo, err := f.ledgerClient.QueryInfo()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	f.EndBlock = ledgerInfo.BCI.Height
-	end = time.Now().UnixNano()
-	return end, nil
+	return &fcom.ChainInfo{BlockHeight: int64(ledgerInfo.BCI.Height), TimeStamp: time.Now().UnixNano()}, nil
 }
 
 //String serial fabric to string
