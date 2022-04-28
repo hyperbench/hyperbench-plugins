@@ -5,6 +5,11 @@ import (
 	"github.com/op/go-logging"
 )
 
+type GrpcMgr struct {
+	grpc  *GRpc
+	grpcs []*GRpc
+}
+
 type GRpcClient struct {
 	transGrpc    *rpc.TransactionGrpc
 	contractGrpc *rpc.ContractGrpc
@@ -19,52 +24,39 @@ type GRpc struct {
 }
 
 type GRpcConfig struct {
+	vmIdx      int
 	path       string
 	streamType string
 	Logger     *logging.Logger
 }
 
-var grpc *GRpc
-var grpcs []*GRpc
-var vmIdx int
+var GrpcConnMgr GrpcMgr
 
-func getGrpcClient(config GRpcConfig) *GRpcClient {
-	if vmIdx%100 == 0 {
-		grpc = NewGRpcWithNum(config)
-		//grpcs = append(grpcs, grpc)
+func (GM *GrpcMgr) getGrpcClient(config GRpcConfig) (*GRpcClient, error) {
+	// Up to 100 streams per connection
+	if config.vmIdx%100 == 0 {
+		GM.grpc = NewGRpcConnection(config)
+		GM.grpcs = append(GM.grpcs, GM.grpc)
 	}
-	vmIdx++
+	transGrpc, err := GM.grpc.gpc.NewTransactionGrpc(rpc.ClientOption{StreamNumber: 1})
+	if err != nil {
+		return nil, err
+	}
+	contractGrpc, err := GM.grpc.gpc.NewContractGrpc(rpc.ClientOption{StreamNumber: 1})
+	if err != nil {
+		return nil, err
+	}
 	return &GRpcClient{
-		transGrpc:    grpc.newTransGRPC(1),
-		contractGrpc: grpc.newContractGRPC(1),
-	}
+		transGrpc:    transGrpc,
+		contractGrpc: contractGrpc,
+	}, nil
 }
 
-func NewGRpcWithNum(gConfig GRpcConfig) *GRpc {
+func NewGRpcConnection(gConfig GRpcConfig) *GRpc {
 	return &GRpc{
 		rpc: rpc.NewRPCWithPath(gConfig.path),
 		gpc: rpc.NewGRPCWithConfPath(gConfig.path),
 	}
-}
-
-func (g *GRpc) newTransGRPC(streamNum int) *rpc.TransactionGrpc {
-	s, err := g.gpc.NewTransactionGrpc(rpc.ClientOption{
-		StreamNumber: streamNum,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
-func (g *GRpc) newContractGRPC(streamNum int) *rpc.ContractGrpc {
-	s, err := g.gpc.NewContractGrpc(rpc.ClientOption{
-		StreamNumber: streamNum,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return s
 }
 
 func (g *GRpcClient) DeployContract(trans *rpc.Transaction) (*rpc.TxReceipt, rpc.StdError) {
@@ -88,7 +80,7 @@ func (g *GRpcClient) InvokeCrossChainContract(transaction *rpc.Transaction, meth
 }
 
 func (g *GRpcClient) FileUpload(filePath string, description string, userList []string, nodeIdList []int, pushNodes []int, accountJson string, password string) (string, rpc.StdError) {
-	return grpc.rpc.FileUpload(filePath, description, userList, nodeIdList, pushNodes, accountJson, password)
+	return GrpcConnMgr.grpc.rpc.FileUpload(filePath, description, userList, nodeIdList, pushNodes, accountJson, password)
 }
 
 func (g *GRpcClient) SendTxReturnHash(transaction *rpc.Transaction) (string, rpc.StdError) {
@@ -100,34 +92,34 @@ func (g *GRpcClient) SendTx(transaction *rpc.Transaction) (*rpc.TxReceipt, rpc.S
 }
 
 func (g *GRpcClient) GetTransactionByHash(txHash string) (*rpc.TransactionInfo, rpc.StdError) {
-	return grpc.rpc.GetTransactionByHash(txHash)
+	return GrpcConnMgr.grpc.rpc.GetTransactionByHash(txHash)
 }
 
 func (g *GRpcClient) GetTxReceiptByPolling(txHash string, isPrivateTx bool) (*rpc.TxReceipt, rpc.StdError, bool) {
-	return grpc.rpc.GetTxReceiptByPolling(txHash, isPrivateTx)
+	return GrpcConnMgr.grpc.rpc.GetTxReceiptByPolling(txHash, isPrivateTx)
 }
 
 func (g *GRpcClient) GetTxCount() (*rpc.TransactionsCount, rpc.StdError) {
-	return grpc.rpc.GetTxCount()
+	return GrpcConnMgr.grpc.rpc.GetTxCount()
 }
 
 func (g *GRpcClient) GetChainHeight() (string, rpc.StdError) {
-	return grpc.rpc.GetChainHeight()
+	return GrpcConnMgr.grpc.rpc.GetChainHeight()
 }
 
 func (g *GRpcClient) CompileContract(code string) (*rpc.CompileResult, rpc.StdError) {
-	return grpc.rpc.CompileContract(code)
+	return GrpcConnMgr.grpc.rpc.CompileContract(code)
 }
 func (g *GRpcClient) SignAndInvokeCrossChainContract(transaction *rpc.Transaction, methodName rpc.CrossChainMethod, key interface{}) (*rpc.TxReceipt, rpc.StdError) {
-	return grpc.rpc.SignAndInvokeCrossChainContract(transaction, method, key)
+	return GrpcConnMgr.grpc.rpc.SignAndInvokeCrossChainContract(transaction, methodName, key)
 }
 
 func (g *GRpcClient) Close() {
-	if len(grpcs) > 0 {
-		for _, grpc := range grpcs {
+	if len(GrpcConnMgr.grpcs) > 0 {
+		for _, grpc := range GrpcConnMgr.grpcs {
 			grpc.gpc.Close()
 			grpc.rpc.Close()
 		}
-		grpcs = []*GRpc{}
+		GrpcConnMgr.grpcs = []*GRpc{}
 	}
 }

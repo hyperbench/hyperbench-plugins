@@ -235,6 +235,9 @@ func TestTransaction(t *testing.T) {
 	client = c.(*ETH)
 	msg, err = client.GetContext()
 	assert.NoError(t, err)
+	start, err := client.LogStatus()
+	assert.NotNil(t, start)
+	assert.NoError(t, err)
 
 	//setcontext
 	err = client.SetContext(msg)
@@ -247,12 +250,14 @@ func TestTransaction(t *testing.T) {
 	assert.Error(t, err)
 
 	//statistic
-	client.startBlock -= 1
-	result, err := client.Statistic(fcom.Statistic{From: 0, To: 1})
+	end, err := client.LogStatus()
+	assert.NotNil(t, end)
+	assert.NoError(t, err)
+	result, err := client.Statistic(fcom.Statistic{From: start, To: end})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = client.Statistic(fcom.Statistic{From: 2, To: 1})
+	result, err = client.Statistic(fcom.Statistic{From: &fcom.ChainInfo{BlockHeight: 2}, To: &fcom.ChainInfo{BlockHeight: 1}})
 	assert.Error(t, err)
 	assert.Nil(t, result)
 

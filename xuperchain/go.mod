@@ -23,3 +23,5 @@ require (
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
+
+replace github.com/hyperbench/hyperbench-common => github.com/shinyxhh/hyperbench-common v0.0.0-20220505100408-ec5555ccfb5b

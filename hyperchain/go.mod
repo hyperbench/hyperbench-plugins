@@ -7,7 +7,7 @@ require (
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hyperbench/hyperbench-common v0.0.0-20220330071908-4ae552479a90
-	github.com/meshplus/gosdk v1.1.1-0.20220419045130-4027b653cac4
+	github.com/meshplus/gosdk v1.2.0
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
@@ -21,3 +21,5 @@ require (
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
 	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect
 )
+
+replace github.com/hyperbench/hyperbench-common => github.com/shinyxhh/hyperbench-common v0.0.0-20220505100408-ec5555ccfb5b

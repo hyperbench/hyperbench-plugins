@@ -51,8 +51,6 @@ type ETH struct {
 	privateKey *ecdsa.PrivateKey
 	publicKey  *ecdsa.PublicKey
 	auth       *bind.TransactOpts
-	startBlock uint64
-	endBlock   uint64
 	contract   *Contract
 	Accounts   map[string]*ecdsa.PrivateKey
 	chainID    *big.Int
@@ -154,17 +152,12 @@ func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
 	auth.Value = big.NewInt(0)       // in wei
 	auth.GasLimit = uint64(gasLimit) // in units
 	auth.GasPrice = gasPrice
-	startBlock, err := ethClient.HeaderByNumber(context.Background(), nil)
-	if err != nil {
-		log.Errorf("get number of headerblock failed: %v", err)
-		return nil, err
-	}
 	workerNum := uint64(len(viper.GetStringSlice(fcom.EngineURLsPath)))
 	if workerNum == 0 {
 		workerNum = 1
 	}
-	vmIdx := uint64(blockchainBase.Options["vmIdx"].(int64))
-	wkIdx := uint64(blockchainBase.Options["wkIdx"].(int64))
+	vmIdx := uint64(blockchainBase.VmIdx)
+	wkIdx := uint64(blockchainBase.WkIdx)
 	client = &ETH{
 		BlockchainBase: blockchainBase,
 		ethClient:      ethClient,
@@ -173,7 +166,6 @@ func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
 		auth:           auth,
 		chainID:        chainID,
 		gasPrice:       gasPrice,
-		startBlock:     startBlock.Number.Uint64(),
 		Accounts:       accounts,
 		round:          0,
 		nonce:          nonce,
@@ -377,9 +369,7 @@ func (e *ETH) GetContext() (string, error) {
 //Statistic statistic remote node performance
 func (e *ETH) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, error) {
 
-	from, to := statistic.From, statistic.To
-
-	statisticData, err := GetTPS(e, from, to)
+	statisticData, err := GetTPS(e, statistic)
 	if err != nil {
 		e.Logger.Errorf("getTPS failed: %v", err)
 		return nil, err
@@ -388,14 +378,12 @@ func (e *ETH) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, error)
 }
 
 // LogStatus records blockheight and time
-func (e *ETH) LogStatus() (end int64, err error) {
+func (e *ETH) LogStatus() (chainInfo *fcom.ChainInfo, err error) {
 	blockInfo, err := e.ethClient.HeaderByNumber(context.Background(), nil)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	e.endBlock = blockInfo.Number.Uint64()
-	end = time.Now().UnixNano()
-	return end, err
+	return &fcom.ChainInfo{BlockHeight: blockInfo.Number.Int64(), TimeStamp: time.Now().UnixNano()}, err
 }
 
 // Option ethereum receive options to change the config to client.
@@ -451,11 +439,13 @@ func KeystoreToPrivateKey(privateKeyFile, password string) (string, string, erro
 }
 
 // GetTPS calculates txnum and blocknum of pressure test
-func GetTPS(e *ETH, beginTime, endTime int64) (*fcom.RemoteStatistic, error) {
+func GetTPS(e *ETH, statistic fcom.Statistic) (*fcom.RemoteStatistic, error) {
+	from, to := statistic.From.TimeStamp, statistic.To.TimeStamp
 	blockCounter, txCounter := 0, 0
+	duration := float64(to - from)
 
-	for i := e.startBlock; i < e.endBlock; i++ {
-		block, err := e.ethClient.BlockByNumber(context.Background(), new(big.Int).SetUint64(i))
+	for i := statistic.From.BlockHeight; i < statistic.To.BlockHeight; i++ {
+		block, err := e.ethClient.BlockByNumber(context.Background(), new(big.Int).SetInt64(i))
 		if err != nil {
 			return nil, err
 		}
@@ -463,15 +453,14 @@ func GetTPS(e *ETH, beginTime, endTime int64) (*fcom.RemoteStatistic, error) {
 		blockCounter++
 	}
 
-	statistic := &fcom.RemoteStatistic{
-		Start:    beginTime,
-		End:      endTime,
+	return &fcom.RemoteStatistic{
+		Start:    from,
+		End:      to,
 		BlockNum: blockCounter,
 		TxNum:    txCounter,
-		CTps:     float64(txCounter) * 1e9 / float64(endTime-beginTime),
-		Bps:      float64(blockCounter) * 1e9 / float64(endTime-beginTime),
-	}
-	return statistic, nil
+		CTps:     float64(txCounter) * float64(time.Second) / duration,
+		Bps:      float64(blockCounter) * float64(time.Second) / duration,
+	}, nil
 }
 
 // newContract initiates abi and bin files of contract
