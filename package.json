@@ -1,0 +1,54 @@
+{
+  "name": "hyperbench-plugins",
+  "version": "0.0.1",
+  "description": "hyperbench-plugins is blockchain platforms adaptions for hyperbench to perform stress testing, used as plugin",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "standard-version"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.cn/hyperbench/hyperbench-plugins"
+  },
+  "keywords": [
+    "blockchain",
+    "hyperbench"
+  ],
+  "author": "Hyperbench-plugins Authors",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "cz-conventional-changelog": "^2.1.0",
+    "ghooks": "^2.0.2",
+    "standard-version": "^4.3.0",
+    "validate-commit-msg-smart": "^1.1.2"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    },
+    "ghooks": {
+      "commit-msg": "validate-commit-msg"
+    },
+    "validate-commit-msg": {
+      "types": [
+        "feat",
+        "fix",
+        "revert",
+        "chore",
+        "docs",
+        "style",
+        "refactor",
+        "perf",
+        "test",
+        "build",
+        "ci"
+      ],
+      "warnOnFail": false,
+      "maxSubjectLength": 100,
+      "subjectPattern": ".+",
+      "subjectPatternErrorMsg": "subject does not match subject pattern, you should use one of [feat| fix| revert|chore| docs| style| refactor| perf| test| build| ci]",
+      "helpMessage": ""
+    }
+  }
+}
