@@ -1,17 +1,26 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/meshplus/gosdk/hvm"
+	"math/rand"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/hyperbench/hyperbench-common/base"
 	fcom "github.com/hyperbench/hyperbench-common/common"
+
+	"github.com/hyperbench/hyperbench-common/base"
 	"github.com/meshplus/gosdk/abi"
+	"github.com/meshplus/gosdk/bvm"
 	"github.com/meshplus/gosdk/common"
-	"github.com/meshplus/gosdk/hvm"
+	"github.com/meshplus/gosdk/fvm/scale"
 	"github.com/meshplus/gosdk/rpc"
 	"github.com/meshplus/gosdk/utils/java"
 	"github.com/pkg/errors"
@@ -22,39 +31,105 @@ import (
 ////based on hyperchain/flato network
 type Client struct {
 	*base.BlockchainBase
-	rpcClient *rpc.RPC
-	am        *AccountManager
-	op        option
-	contract  *Contract
+	client   Cli
+	am       *AccountManager
+	op       option
+	contract *Contract
 }
 
 // option means the the options of hyperchain client
 type option struct {
-	poll           bool
-	simulate       bool
-	defaultAccount string
-	fakeSign       bool
-	nonce          int64
-	extraIDStr     []string
-	extraIDInt64   []int64
+	poll            bool     // symbol of confirming transaction
+	simulate        bool     // symbol of simulation transaction
+	defaultAccount  string   // defaultAccount
+	fakeSign        bool     // symbol of fakeSign
+	nonce           int64    // nonce
+	extraIDStr      []string // string type of extraIDs
+	extraIDInt64    []int64  // int64 type of extraIDs
+	vmType          string   // type of vm
+	requestType     string   // type of request, rpc or grpc
+	HvmType         string   // type of invoking hvm
+	FvmAdvancedType bool     // symbol of FvmAdvanced
+	FileSize        string   // symbol of big file
+	CrossChain      bool     // symbol of crossChain
 }
 
-// NewClient use given blockchainBase create Client.
-func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
+const (
+	//hvm type
+	hvmBean   = "bean"
+	hvmMethod = "method"
+	// configurations
+	kerStore      = "keystore"
+	sign          = "sign"
+	typeOfRequest = "request"
+	crossChain    = "crosschain"
+	simulateOpt   = "simulate"
+	typeOfVm      = "vmtype"
+	fvmType       = "fvmadvancedtype"
 
-	keystorePath := cast.ToString(blockchainBase.Options["keystore"])
-	keystoreType := cast.ToString(blockchainBase.Options["sign"])
+	// option
+	accountValue = "account"
+	confirm      = "confirm"
+	nonce        = "nonce"
+	extraId      = "extraid"
+	fileSize     = "filesize"
+)
+
+// New use given blockchainBase create Client
+func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
+	var (
+		request Cli
+	)
+	keystorePath := cast.ToString(blockchainBase.Options[kerStore])
+	keystoreType := cast.ToString(blockchainBase.Options[sign])
+	requestType := cast.ToString(blockchainBase.Options[typeOfRequest])
+	CrossChain := cast.ToBool(blockchainBase.Options[crossChain])
+	simulate := cast.ToBool(blockchainBase.Options[simulateOpt])
+	vmType := cast.ToString(blockchainBase.Options[typeOfVm])
+	fvmAdvancedType := cast.ToBool(blockchainBase.Options[fvmType])
+
+	switch requestType {
+	case RPC:
+		rpcCli := rpc.NewRPCWithPath(blockchainBase.ConfigPath)
+		curNode := 1
+		if rpcCli.GetNodesNum() != 1 {
+			curNode = blockchainBase.VmID%rpcCli.GetNodesNum() + 1
+		}
+		blockchainBase.Logger.Debug("bind nodes for each user:", curNode)
+		request, _ = rpcCli.BindNodes(curNode)
+	case GRPC:
+		gRpcConfig := GRpcConfig{
+			path:   blockchainBase.ConfigPath,
+			Logger: blockchainBase.Logger,
+		}
+		// distinguish vms of master and worker
+		if blockchainBase.WorkerID == -1 {
+			gRpcConfig.vmIdx = 0
+		} else {
+			gRpcConfig.vmIdx = blockchainBase.VmID
+		}
+		request, err = GrpcConnMgr.getGrpcClient(gRpcConfig)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		request = rpc.NewRPCWithPath(blockchainBase.ConfigPath)
+	}
+
 	poll := cast.ToBool(blockchainBase.Options["poll"])
 	am := NewAccountManager(keystorePath, keystoreType, blockchainBase.Logger)
-	rpcClient := rpc.NewRPCWithPath(blockchainBase.ConfigPath)
-
 	client = &Client{
 		BlockchainBase: blockchainBase,
 		am:             am,
-		rpcClient:      rpcClient,
+		client:         request,
 		op: option{
-			nonce: -1,
-			poll:  poll,
+			nonce:           -1,
+			poll:            poll,
+			requestType:     requestType,
+			CrossChain:      CrossChain,
+			simulate:        simulate,
+			vmType:          vmType,
+			FvmAdvancedType: fvmAdvancedType,
 		},
 	}
 	return
@@ -120,7 +195,12 @@ func (c *Client) Invoke(invoke fcom.Invoke, ops ...fcom.Option) *fcom.Result {
 		payload = java.EncodeJavaFunc(funcName, argStrings...)
 	case rpc.HVM:
 		var beanAbi *hvm.BeanAbi
-		beanAbi, err = c.contract.hvmABI.GetBeanAbi(funcName)
+		switch c.op.HvmType {
+		case hvmBean:
+			beanAbi, err = c.contract.hvmABI.GetBeanAbi(funcName)
+		default:
+			beanAbi, err = c.contract.hvmABI.GetMethodAbi(funcName)
+		}
 		if err != nil {
 			c.Logger.Info(err)
 			return &fcom.Result{
@@ -142,6 +222,41 @@ func (c *Client) Invoke(invoke fcom.Invoke, ops ...fcom.Option) *fcom.Result {
 				BuildTime: buildTime,
 			}
 		}
+	case rpc.BVM:
+		switch strings.ToLower(funcName) {
+		case "set":
+			operation := bvm.NewHashSetOperation(args[0].(string), args[1].(string))
+			payload = bvm.EncodeOperation(operation)
+		case "get":
+			operation := bvm.NewHashGetOperation(args[0].(string))
+			payload = bvm.EncodeOperation(operation)
+		}
+
+	case rpc.KVSQL:
+		payload = []byte(funcName)
+	case rpc.FVM:
+		if c.op.FvmAdvancedType {
+			switch funcName {
+			case "set_hash":
+				btKey, btKeyLength := encodeFvmFastData(args[0])
+				btValue, btValueLength := encodeFvmFastData(args[1])
+				payload = append([]byte{215, 250, 16, 07}, btKeyLength[:]...)
+				payload = append(payload, btValueLength[:]...)
+				payload = append(payload, btKey...)
+				payload = append(payload, btValue...)
+			case "get_hash":
+				btKey, bkKeyLength := encodeFvmFastData(args[0])
+				payload = append([]byte{60, 245, 04, 10}, bkKeyLength[:]...)
+				payload = append(payload, btKey...)
+			}
+		} else {
+			payload, err = c.contract.fvmABI.Encode(funcName, args...)
+			if err != nil {
+				c.Logger.Errorf("fvm encode func:%v,args:%v failed :%v\n", funcName, args, err)
+				return nil
+			}
+		}
+
 	}
 
 	// invoke
@@ -160,11 +275,17 @@ func (c *Client) Invoke(invoke fcom.Invoke, ops ...fcom.Option) *fcom.Result {
 	if c.op.nonce >= 0 {
 		tranInvoke.SetNonce(c.op.nonce)
 	}
-
 	c.sign(tranInvoke, ac)
-
 	// just send tx after sending tx
-	hash, stdErr := c.rpcClient.InvokeContractReturnHash(tranInvoke)
+	var (
+		hash   string
+		stdErr error
+	)
+	if c.op.CrossChain {
+		hash, stdErr = c.client.InvokeCrossChainContractReturnHash(tranInvoke, "invokeContract")
+	} else {
+		hash, stdErr = c.client.InvokeContractReturnHash(tranInvoke)
+	}
 	sendTime := time.Now().UnixNano()
 	if stdErr != nil {
 		c.Logger.Infof("invoke error: %v", stdErr)
@@ -193,6 +314,16 @@ func (c *Client) Invoke(invoke fcom.Invoke, ops ...fcom.Option) *fcom.Result {
 
 }
 
+func encodeFvmFastData(i interface{}) ([]byte, [2]byte) {
+	dataBtHex := common.ToHex([]byte(fmt.Sprintf("%v", i)))
+	dataBts := hexToBytes(dataBtHex)
+	length := len(dataBts)
+	var lengthBts [2]byte
+	lengthBts[0] = byte(length >> 8 & 0xff)
+	lengthBts[1] = byte(length & 0xff)
+	return dataBts, lengthBts
+}
+
 // Confirm check the result of `Invoke` or `Transfer`
 func (c *Client) Confirm(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
 
@@ -204,7 +335,7 @@ func (c *Client) Confirm(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
 	}
 
 	// poll
-	txReceipt, stdErr, got := c.rpcClient.GetTxReceiptByPolling(result.UID, false)
+	txReceipt, stdErr, got := c.client.GetTxReceiptByPolling(result.UID, false)
 	result.ConfirmTime = time.Now().UnixNano()
 	if stdErr != nil || !got {
 		c.Logger.Errorf("invoke failed: %v", stdErr)
@@ -235,12 +366,32 @@ func (c *Client) Confirm(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
 
 	case rpc.JVM, rpc.HVM:
 		results = append(results, java.DecodeJavaResult(txReceipt.Ret))
+	case rpc.BVM:
+		results = append(results, fmt.Sprint(string(bvm.Decode(txReceipt.Ret).Ret)))
+	case rpc.KVSQL:
+		//use bvm decode
+		results = append(results, fmt.Sprint(bvm.Decode(txReceipt.Ret)))
+	case rpc.FVM:
+		if c.op.FvmAdvancedType {
+			ret := common.FromHex(txReceipt.Ret)
+			results = append(results, string(ret))
+		} else {
+			ret, err := c.contract.fvmABI.DecodeRet(common.FromHex(txReceipt.Ret), result.Label)
+			if err != nil {
+				c.Logger.Errorf("fvm decode func:%v failed :%v", result.Label, err)
+				results = append(results, fmt.Sprintf(""))
+				break
+			}
+			for _, param1 := range ret.Params {
+				results = append(results, scale.GetCompactValue(param1))
+			}
+		}
 	default:
 		results = append(results, txReceipt.Ret)
 	}
 
 	result.Ret = results
-	info, stdErr := c.rpcClient.GetTransactionByHash(txReceipt.TxHash)
+	info, stdErr := c.client.GetTransactionByHash(txReceipt.TxHash)
 	if stdErr != nil {
 		c.Logger.Infof("get transaction by hash error: %v", stdErr)
 		return result
@@ -270,15 +421,7 @@ func (c *Client) sign(tx *rpc.Transaction, acc Account) {
 
 //Transfer transfer a amount of money from a account to the other one
 func (c *Client) Transfer(args fcom.Transfer, ops ...fcom.Option) (result *fcom.Result) {
-
-	//c.Logger.Notice("transfer")
-	//defer func() {
-	//	_ = recover()
-	//	var buf [4096]byte
-	//	n := runtime.Stack(buf[:], false)
-	//	c.Logger.Critical("==> %s\n", string(buf[:n]))
-	//}()
-
+	ret := &fcom.Result{}
 	from, to, amount, extra := args.From, args.To, args.Amount, args.Extra
 	buildTime := time.Now().UnixNano()
 	fromAcc, err := c.am.GetAccount(from)
@@ -303,12 +446,47 @@ func (c *Client) Transfer(args fcom.Transfer, ops ...fcom.Option) (result *fcom.
 	}
 
 	tx := rpc.NewTransaction(fromAcc.GetAddress().Hex()).Transfer(toAcc.GetAddress().Hex(), amount).Extra(extra).Simulate(c.op.simulate)
-	//tx.SetVmType("TRANSFER")
-	if len(c.op.extraIDStr) > 0 {
-		tx.SetExtraIDString(c.op.extraIDStr...)
-	}
-	if len(c.op.extraIDInt64) > 0 {
-		tx.SetExtraIDInt64(c.op.extraIDInt64...)
+	if len(c.op.FileSize) > 0 {
+		//send a fileUploadTx
+		path := "fileMgr"
+		err = os.Mkdir(path, os.ModePerm)
+		if err != nil && !os.IsExist(err) {
+			c.Logger.Error("init file path failed: %v", err)
+		}
+		// create random file
+		filePath := filepath.Join(path, "upload1.txt")
+		size, err := strconv.Atoi(c.op.FileSize)
+		if err != nil {
+			c.Logger.Error("file size convert to int failed，please check", c.op.FileSize)
+			return &fcom.Result{
+				Label:     "file",
+				UID:       fcom.InvalidUID,
+				Ret:       []interface{}{},
+				Status:    fcom.Failure,
+				BuildTime: buildTime,
+			}
+		}
+		makeBigFile(filePath, size)
+		nodeIdList := []int{1, 2, 3}
+		userList := []string{fromAcc.GetAddress().Hex()}
+		accountJson := c.am.AccountsJSON[from]
+		txHash, stdErr := c.client.FileUpload(filePath, "des", userList, nodeIdList, nodeIdList, accountJson, PASSWORD)
+		if stdErr != nil {
+
+		}
+		startTime := time.Now().UnixNano()
+		err = os.RemoveAll(path)
+		if err != nil && !os.IsNotExist(err) {
+			c.Logger.Error("delete file path failed :%v", err)
+		}
+		return &fcom.Result{
+			Label:     "file",
+			UID:       txHash,
+			Ret:       []interface{}{},
+			Status:    fcom.Success,
+			BuildTime: buildTime,
+			SendTime:  startTime,
+		}
 	}
 
 	if c.op.nonce >= 0 {
@@ -316,7 +494,7 @@ func (c *Client) Transfer(args fcom.Transfer, ops ...fcom.Option) (result *fcom.
 	}
 
 	c.sign(tx, fromAcc)
-	hash, stdErr := c.rpcClient.SendTxReturnHash(tx)
+	hash, stdErr := c.client.SendTxReturnHash(tx)
 	sendTime := time.Now().UnixNano()
 	if stdErr != nil {
 		c.Logger.Infof("transfer error: %v", stdErr)
@@ -329,7 +507,7 @@ func (c *Client) Transfer(args fcom.Transfer, ops ...fcom.Option) (result *fcom.
 			SendTime:  sendTime,
 		}
 	}
-	ret := &fcom.Result{
+	ret = &fcom.Result{
 		Label:     fcom.BuiltinTransferLabel,
 		UID:       hash,
 		Ret:       []interface{}{},
@@ -382,6 +560,12 @@ func (c *Client) SetContext(context string) error {
 			return err
 		}
 		contract.hvmABI = a
+	case rpc.FVM:
+		f, err := scale.JSON(bytes.NewReader([]byte(msg.Contract.ABIRaw)))
+		if err != nil {
+			return err
+		}
+		contract.fvmABI = f
 	default:
 	}
 	c.contract = contract
@@ -402,8 +586,8 @@ func (c *Client) ResetContext() error {
 //GetContext generate TxContext
 func (c *Client) GetContext() (string, error) {
 	var (
-		bytes []byte
-		err   error
+		bts []byte
+		err error
 	)
 	if c.contract == nil || c.am == nil {
 		return "", nil
@@ -413,35 +597,44 @@ func (c *Client) GetContext() (string, error) {
 		Contract: c.contract.ContractRaw,
 	}
 
-	bytes, err = json.Marshal(msg)
+	bts, err = json.Marshal(msg)
 
-	return string(bytes), err
+	return string(bts), err
 }
 
 //Statistic statistic remote node performance
 func (c *Client) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic, error) {
-	from, to := statistic.From, statistic.To
-	tps, err := c.rpcClient.QueryTPS(uint64(from), uint64(to))
-	if err != nil {
-		return nil, errors.Wrap(err, "query error")
-	}
-
+	from, to := statistic.From.TimeStamp, statistic.To.TimeStamp
+	txNum := int(statistic.To.TxCount - statistic.From.TxCount)
+	blockNum := int(statistic.To.BlockHeight - statistic.From.BlockHeight)
+	duration := float64(to - from)
 	ret := &fcom.RemoteStatistic{
 		Start:    from,
 		End:      to,
-		BlockNum: int(tps.TotalBlockNum),
-		TxNum:    int(tps.Tps*float64(to-from)) / int(time.Second),
-		CTps:     tps.Tps,
-		Bps:      float64(tps.TotalBlockNum) / float64(to-from) * 1e9,
+		BlockNum: blockNum,
+		TxNum:    txNum,
+		CTps:     float64(txNum) * float64(time.Second) / duration,
+		Bps:      float64(blockNum) * float64(time.Second) / duration,
 	}
 
 	return ret, nil
 }
 
-// LogStatus records blockheight and time
-func (c *Client) LogStatus() (end int64, err error) {
-	end = time.Now().UnixNano()
-	return end, nil
+// LogStatus records chainInfo containing txCount, blockHeight and timeStamp
+func (c *Client) LogStatus() (chainInfo *fcom.ChainInfo, err error) {
+	txCount, err := c.client.GetTxCount()
+	if err != nil {
+		return nil, errors.Wrap(err, "txCount query error")
+	}
+	height, err := c.client.GetChainHeight()
+	if err != nil {
+		return nil, errors.Wrap(err, "chainHeight query error")
+	}
+	blockHeight, er := strconv.ParseInt(strings.TrimPrefix(height, "0x"), 16, 64)
+	if er != nil {
+		return nil, er
+	}
+	return &fcom.ChainInfo{TxCount: txCount.Count, BlockHeight: blockHeight, TimeStamp: time.Now().UnixNano()}, nil
 }
 
 // Option hyperchain receive options to change the config to client.
@@ -467,29 +660,29 @@ func (c *Client) LogStatus() (end int64, err error) {
 func (c *Client) Option(options fcom.Option) error {
 	for key, value := range options {
 		switch key {
-		case "confirm":
+		case confirm:
 			if poll, ok := value.(bool); ok {
 				c.op.poll = poll
 			} else {
 				return errors.Errorf("option `confirm` type error: %v", reflect.TypeOf(value).Name())
 			}
-		case "simulate":
+		case simulateOpt:
 			if simulate, ok := value.(bool); ok {
 				c.op.simulate = simulate
 			} else {
 				return errors.Errorf("option `simulate` type error: %v", reflect.TypeOf(value).Name())
 			}
-		case "account":
+		case accountValue:
 			if a, ok := value.(string); ok {
 				c.op.defaultAccount = a
 			} else {
 				return errors.Errorf("option `account` type error: %v", reflect.TypeOf(value).Name())
 			}
-		case "nonce":
+		case nonce:
 			if n, ok := value.(float64); ok {
 				c.op.nonce = int64(n)
 			}
-		case "extraid":
+		case extraId:
 			if n, ok := value.([]interface{}); ok {
 				var strs = make([]string, 0, len(n))
 				var ints = make([]int64, 0, len(n))
@@ -505,7 +698,57 @@ func (c *Client) Option(options fcom.Option) error {
 				c.op.extraIDStr = strs
 				c.op.extraIDInt64 = ints
 			}
+
+		case HVM:
+			if s, ok := value.(string); ok {
+				switch s {
+				case hvmBean:
+					c.op.HvmType = hvmBean
+				default:
+					c.op.HvmType = hvmMethod
+				}
+			}
+		case fileSize:
+			if size, ok := value.(string); ok {
+				c.op.FileSize = size
+			}
+		case fvmType:
+			if rt, ok := value.(bool); ok {
+				c.op.FvmAdvancedType = rt
+			}
 		}
 	}
 	return nil
+}
+
+// todo：confirm if it needs to create big file every time
+// create size KB file
+func makeBigFile(name string, size int) error {
+	file, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	rand.Seed(time.Now().UnixNano())
+	buf := make([]byte, 1024)
+	for i := 0; i < size; i++ {
+		for i := 0; i < 1024; i++ {
+			buf[i] = byte(rand.Intn(128))
+		}
+		_, err := file.Write(buf)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// hexToBytes converts hex string to []byte
+func hexToBytes(str string) []byte {
+	if len(str) >= 2 && str[0:2] == "0x" {
+		str = str[2:]
+	}
+	h, _ := hex.DecodeString(str)
+
+	return h
 }
