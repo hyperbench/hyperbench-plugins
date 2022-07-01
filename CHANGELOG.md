@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.0.2"></a>
+## [0.0.2](http://github.cn/hyperbench/hyperbench-plugins/compare/v0.0.1...v0.0.2) (2022-07-01)
+
+
+### Bug Fixes
+
+* **go.mod:** change sdk version to fix hyperbench[#16](http://github.cn/hyperbench/hyperbench-plugins/issues/16) ([a13065e](http://github.cn/hyperbench/hyperbench-plugins/commits/a13065e))
+
+
+
 <a name="0.0.1"></a>
 ## 0.0.1 (2022-05-13)
 
