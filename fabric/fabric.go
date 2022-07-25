@@ -143,9 +143,16 @@ func (f *Fabric) Invoke(invoke fcom.Invoke, ops ...fcom.Option) *fcom.Result {
 	return result
 
 }
+
 func (f *Fabric) Confirm(*fcom.Result, ...fcom.Option) *fcom.Result {
 	return nil
 }
+
+// Verify fabric does not support confirm and verification
+func (f *Fabric) Verify(*fcom.Result, ...fcom.Option) *fcom.Result {
+	return nil
+}
+
 func (f *Fabric) Transfer(fcom.Transfer, ...fcom.Option) *fcom.Result {
 	return nil
 }

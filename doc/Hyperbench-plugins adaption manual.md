@@ -18,6 +18,9 @@ type Blockchain interface {
 	// Confirm check the result of `Invoke` or `Transfer`
 	Confirm(*Result, ...Option) *Result
 
+    // Verify check the relative time of transaction
+	Verify(*Result, ...Option) *Result
+    
 	// Query do some query
 	Query(Query, ...Option) interface{}
 
@@ -149,6 +152,10 @@ type Result struct {
   Ret []interface{} `mapstructure:"ret"`
 }
 ```
+#### Verify(*Result, ...Option) *Result
+1. 首先根据传入的result对象的Label、Status、UID判断是否为有效交易，若不是，则直接返回。
+2. 若为有效交易，则根据交易的UID即哈希，查询上链情况，并获取其返回信息。返回信息可能包括交易回执，交易写入时间戳。此处返回信息根据姆目标平台接口进行灵活适配，若不支持则可不做设置。涉及数据结构同Confirm：
+3. 该接口用于验证交易的延迟，主要关注于交易的生成、上链的时间戳。
 #### Query(Query, ...Option) interface{}
 根据Query参数中的方法和入参查询链上数据，此接口目前未做实现，为预留接口。
 #### Option(Option) error

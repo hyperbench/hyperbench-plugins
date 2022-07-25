@@ -316,6 +316,13 @@ func TestHyperchain(t *testing.T) {
 	res = hpc.Confirm(&fcom.Result{UID: "111", Status: fcom.Success, Label: "111"})
 	assert.Equal(t, res.Status, fcom.Unknown)
 
+	//verify
+	res = hpc.Verify(&fcom.Result{UID: "", Status: fcom.Success})
+	assert.Equal(t, res.Status, fcom.Confirm)
+
+	res = hpc.Verify(&fcom.Result{UID: "111", Status: fcom.Success, Label: "111"})
+	assert.Equal(t, res.Status, fcom.Unknown)
+
 	//transfer
 	res = hpc.Transfer(fcom.Transfer{From: "0", To: "1", Amount: 0, Extra: ""})
 	assert.Equal(t, res.Status, fcom.Success)
