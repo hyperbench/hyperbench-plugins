@@ -400,6 +400,30 @@ func (c *Client) Confirm(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
 	return result
 }
 
+// Verify check the relative time of transaction
+func (c *Client) Verify(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
+	if result.UID == "" || result.UID == fcom.InvalidUID ||
+		result.Status != fcom.Success || result.Label == fcom.InvalidLabel {
+		return result
+	}
+	info, stdErr := c.client.GetTransactionByHash(result.UID)
+	// try five times, each time wait 200ms
+	for i := 0; stdErr != nil && i < 5; i++ {
+		info, stdErr = c.client.GetTransactionByHash(result.UID)
+		time.Sleep(time.Millisecond * 200)
+	}
+	result.ConfirmTime = time.Now().UnixNano()
+	if stdErr != nil {
+		result.Status = fcom.Unknown
+		c.Logger.Infof("get transaction by hash error: %v", stdErr)
+		return result
+	}
+
+	result.Status = fcom.Confirm
+	result.WriteTime = info.BlockWriteTime
+	return result
+}
+
 func (c *Client) sign(tx *rpc.Transaction, acc Account) {
 	if c.op.fakeSign {
 		tx.SetSignature(fakeSign())
