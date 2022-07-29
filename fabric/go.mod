@@ -16,8 +16,8 @@ require (
 	github.com/spf13/cast v1.4.1
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-    golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-    golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect
+    golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
+    golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
