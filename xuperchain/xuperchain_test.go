@@ -23,7 +23,7 @@ func TestXuperchain(t *testing.T) {
 		ContractPath: "./../../../benchmark/xuperGoContract/contract",
 		Args:         nil,
 		Options:      op,
-		VmIdx:        0,
+		VmID:         0,
 	})
 
 	// newClient
@@ -152,12 +152,19 @@ func TestXuperchain(t *testing.T) {
 	})
 	assert.Equal(t, res.Status, fcom.Status("failure"))
 
+	// Confirm
 	client.Confirm(res)
 	assert.Equal(t, res.Status, fcom.Status("failure"))
 
 	res.UID = "111"
-	res.Status = fcom.Status("success")
+	res.Status = fcom.Success
 	client.Confirm(res)
+	assert.Equal(t, res.Status, fcom.Status("unknown"))
+
+	//verify
+	res.UID = "111"
+	res.Status = fcom.Success
+	client.Verify(res)
 	assert.Equal(t, res.Status, fcom.Status("unknown"))
 
 	// transfer

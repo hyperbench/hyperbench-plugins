@@ -6,7 +6,7 @@ require (
 	github.com/coreos/etcd v3.3.13+incompatible // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/hyperbench/hyperbench-common v0.0.1
+	github.com/hyperbench/hyperbench-common v0.0.2
 	github.com/meshplus/gosdk v1.2.2
 	github.com/nwaples/rardecode v1.1.0 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7

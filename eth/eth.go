@@ -262,6 +262,12 @@ func (e *ETH) Confirm(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
 	return result
 }
 
+// Verify check the relative time of transaction
+func (e *ETH) Verify(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
+	// eth verification is the same of confirm
+	return e.Confirm(result)
+}
+
 //Transfer transfer a amount of money from a account to the other one
 func (e *ETH) Transfer(args fcom.Transfer, ops ...fcom.Option) (result *fcom.Result) {
 	nonce := e.nonce + (e.wkIdx+e.round*e.workerNum)*(e.engineCap/e.workerNum) + e.vmIdx

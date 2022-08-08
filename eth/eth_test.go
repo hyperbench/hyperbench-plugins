@@ -204,6 +204,15 @@ func TestTransaction(t *testing.T) {
 	res = client.Confirm(res)
 	assert.Equal(t, res.Status, fcom.Status("unknown"))
 
+	res.UID = ""
+	res.Status = "success"
+	res = client.Verify(res)
+	assert.Equal(t, res.Status, fcom.Status("success"))
+
+	res.UID = "111"
+	res = client.Verify(res)
+	assert.Equal(t, res.Status, fcom.Status("unknown"))
+
 	client.nonce -= 1
 	res = client.Transfer(fcom.Transfer{From: "74d366e0649a91395bb122c005917644382b9452", To: "74d366e0649a91395bb122c005917644382b9452", Amount: int64(1)})
 	assert.Equal(t, res.Status, fcom.Status("failure"))

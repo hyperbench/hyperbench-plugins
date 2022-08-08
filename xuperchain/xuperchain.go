@@ -329,6 +329,12 @@ func (x *Xuperchain) Confirm(result *fcom.Result, ops ...fcom.Option) *fcom.Resu
 	return result
 }
 
+// Verify check the relative time of transaction
+func (x *Xuperchain) Verify(result *fcom.Result, ops ...fcom.Option) *fcom.Result {
+	// xuperchain verification is the same of confirm
+	return x.Confirm(result)
+}
+
 //Transfer transfer a amount of money from a account to  another
 func (x *Xuperchain) Transfer(args fcom.Transfer, ops ...fcom.Option) (result *fcom.Result) {
 	// record transfer tx buildtime
