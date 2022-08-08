@@ -1,6 +1,6 @@
 {
   "name": "hyperbench-plugins",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "hyperbench-plugins is blockchain platforms adaptions for hyperbench to perform stress testing, used as plugin",
   "main": "index.js",
   "scripts": {
