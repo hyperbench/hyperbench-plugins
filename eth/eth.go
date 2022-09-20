@@ -138,7 +138,7 @@ func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
 		log.Errorf("generate gasprice failed: %v", err)
 		return nil, err
 	}
-	chainID, err := ethClient.NetworkID(context.Background())
+	chainID, err := ethClient.ChainID(context.Background())
 	if err != nil {
 		log.Errorf("get chainID failed: %v", err)
 		return nil, err
