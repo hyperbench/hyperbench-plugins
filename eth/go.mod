@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/ethereum/go-ethereum v1.10.9
-	github.com/hyperbench/hyperbench-common v0.0.2
+	github.com/hyperbench/hyperbench-common v0.0.3
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/spf13/afero v1.8.2 // indirect

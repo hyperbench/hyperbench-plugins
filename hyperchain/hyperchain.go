@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/meshplus/gosdk/hvm"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -15,7 +14,7 @@ import (
 	"time"
 
 	fcom "github.com/hyperbench/hyperbench-common/common"
-
+	"github.com/meshplus/gosdk/hvm"
 	"github.com/hyperbench/hyperbench-common/base"
 	"github.com/meshplus/gosdk/abi"
 	"github.com/meshplus/gosdk/bvm"
@@ -90,13 +89,17 @@ func New(blockchainBase *base.BlockchainBase) (client interface{}, err error) {
 
 	switch requestType {
 	case RPC:
+
 		rpcCli := rpc.NewRPCWithPath(blockchainBase.ConfigPath)
 		curNode := 1
 		if rpcCli.GetNodesNum() != 1 {
 			curNode = blockchainBase.VmID%rpcCli.GetNodesNum() + 1
 		}
-		blockchainBase.Logger.Debug("bind nodes for each user:", curNode)
-		request, _ = rpcCli.BindNodes(curNode)
+		blockchainBase.Logger.Debugf("before bind nodes for each user:%v", curNode)
+		request, err = rpcCli.BindNodes(curNode)
+		if err != nil {
+			return nil, errors.Wrap(err, "bindNodes fail")
+		}
 	case GRPC:
 		gRpcConfig := GRpcConfig{
 			path:   blockchainBase.ConfigPath,
