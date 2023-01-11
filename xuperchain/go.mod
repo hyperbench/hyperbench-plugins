@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.1.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/huin/goupnp v1.0.2 // indirect
-	github.com/hyperbench/hyperbench-common v0.0.3
+	github.com/hyperbench/hyperbench-common v0.0.4
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/prometheus/client_golang v1.4.1 // indirect

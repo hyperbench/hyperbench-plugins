@@ -3,7 +3,7 @@ module github.com/hyperbench/hyperbench-plugins/hyperchain
 go 1.17
 
 require (
-	github.com/hyperbench/hyperbench-common v0.0.3
+	github.com/hyperbench/hyperbench-common v0.0.4
 	github.com/meshplus/gosdk v1.2.2
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pkg/errors v0.9.1
