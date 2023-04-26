@@ -467,7 +467,7 @@ func (x *Xuperchain) Statistic(statistic fcom.Statistic) (*fcom.RemoteStatistic,
 
 // LogStatus records blockheight and time
 func (x *Xuperchain) LogStatus() (chainInfo *fcom.ChainInfo, err error) {
-	bk, err := x.client.QueryBlockChainStatus(DEFAULTBCNAME)
+	bk, err := x.client.QueryBlockChainStatus()
 	if err != nil {
 		return nil, err
 	}

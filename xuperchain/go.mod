@@ -19,7 +19,7 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
-	github.com/xuperchain/xuper-sdk-go/v2 v2.0.0
+	github.com/xuperchain/xuper-sdk-go/v2 v2.0.1-0.20230411093223-05e3044484d4
 	golang.org/x/crypto v0.0.0 // indirect
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/sys v0.0.0 // indirect
@@ -31,3 +31,5 @@ require (
 replace golang.org/x/crypto => golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 
 replace golang.org/x/sys => github.com/golang/sys v0.0.0-20220722155257-8c9f86f7a55f
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
