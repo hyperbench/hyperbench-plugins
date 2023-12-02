@@ -1,0 +1,9 @@
+.DS_Store
+*.so
+benchmark
+csv
+.idea
+*/logs/*
+logs/*
+*.log
+node_modules/
